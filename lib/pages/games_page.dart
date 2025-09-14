@@ -17,7 +17,7 @@ class _GamesPageState extends State<GamesPage> {
   Widget build(BuildContext context) {
     final app = widget.app;
 
-    // guard defaults using your state fields
+    // defaults from your state.dart
     final cats = app.categories;
     final selCat = app.selectedCategory ?? cats.first;
     final list = app.games[selCat]!;
@@ -35,11 +35,14 @@ class _GamesPageState extends State<GamesPage> {
                 final sel = c == selCat;
                 return ChoiceChip(
                   selected: sel,
-                  label: Text(c, style: TextStyle(
-                    fontWeight: FontWeight.w900,
-                    color: sel ? Colors.black : Colors.white,
-                  )),
-                  onSelected: (_) => setState(()=> app.pickCategory(c)),
+                  label: Text(
+                    c,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      color: sel ? Colors.black : Colors.white,
+                    ),
+                  ),
+                  onSelected: (_) => setState(() => app.pickCategory(c)),
                 );
               }).toList(),
             ),
@@ -58,11 +61,14 @@ class _GamesPageState extends State<GamesPage> {
                 final sel = g == app.selectedGame;
                 return FilterChip(
                   selected: sel,
-                  label: Text(g, style: TextStyle(
-                    fontWeight: FontWeight.w900,
-                    color: sel ? Colors.black : Colors.white,
-                  )),
-                  onSelected: (_) => setState(()=> app.pickGame(g)),
+                  label: Text(
+                    g,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      color: sel ? Colors.black : Colors.white,
+                    ),
+                  ),
+                  onSelected: (_) => setState(() => app.pickGame(g)),
                 );
               }).toList(),
             ),
@@ -71,13 +77,14 @@ class _GamesPageState extends State<GamesPage> {
 
         const SizedBox(height: 16),
 
-        // انزلي → create room (backend)
+        // انزلي → create room on backend
         FilledButton.tonalIcon(
           icon: const Icon(Icons.qr_code_2),
           onPressed: () async {
             try {
               final gameId = app.selectedGame ?? 'بلياردو';
               final room = await createRoom(gameId: gameId, hostUserId: hostUserId);
+
               final code = (room['code'] ?? '').toString();
               app.roomCode = code;
 
@@ -92,9 +99,8 @@ class _GamesPageState extends State<GamesPage> {
               );
             } catch (e) {
               if (!mounted) return;
-              // ⛳️ أعرض نص الخطأ الكامل
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Create error: $e')),
+                SnackBar(content: Text('خطأ: $e')),
               );
             }
           },

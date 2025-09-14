@@ -13,7 +13,8 @@ import 'pages/profile_page.dart';
 import 'pages/signin_page.dart';
 
 // Your HTTP API (custom backend)
-import 'api_room.dart'; // <- must expose joinByCode({code,userId}) and optionally getRoomByCode(code)
+import 'api_room.dart';
+import 'config.dart'; // ✅ هنا نستورد config.dart عشان نستعمل guestUserId
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -48,11 +49,10 @@ class InzeliApp extends StatelessWidget {
             titleTextStyle: TextStyle(
                 fontSize: 20, fontWeight: FontWeight.w900, color: Colors.black),
           ),
-          // Your SDK expects CardThemeData (not CardTheme)
-          cardTheme: CardThemeData(
+          cardTheme: const CardThemeData(
             color: Colors.white,
             elevation: 2,
-            shape: const RoundedRectangleBorder(
+            shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.all(Radius.circular(16)),
               side: BorderSide(color: Color(0xFFEADFCC)),
             ),
@@ -64,12 +64,12 @@ class InzeliApp extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
               borderSide: const BorderSide(color: Colors.transparent),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
+            focusedBorder: const OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(14)),
               borderSide: BorderSide(color: Color(0xFFC5533C), width: 1.4),
             ),
-            labelStyle: const TextStyle(color: Colors.black87),
-            hintStyle: const TextStyle(color: Colors.black54),
+            labelStyle: TextStyle(color: Colors.black87),
+            hintStyle: TextStyle(color: Colors.black54),
           ),
         ),
         home: HomeShell(app: app),
@@ -98,12 +98,10 @@ class _HomeShellState extends State<HomeShell> {
     _initDeepLinks();
   }
 
-  // Handle both HTTPS URLs (e.g., https://inzeli.app/join/CODE) and custom scheme (inzeli://join?code=CODE)
   Future<void> _initDeepLinks() async {
     try {
       _appLinks = AppLinks();
 
-      // Get initial link (handle both new & old API names to avoid version issues)
       Uri? initialUri;
       try {
         initialUri = await _appLinks!.getInitialLink(); // app_links >= 6.x
@@ -116,7 +114,6 @@ class _HomeShellState extends State<HomeShell> {
       }
       if (initialUri != null) await _handleUri(initialUri);
 
-      // Stream deep links while app is running
       _linkSub = _appLinks!.uriLinkStream.listen(
             (uri) => _handleUri(uri),
         onError: (err) => debugPrint('Deep link stream error: $err'),
@@ -129,7 +126,6 @@ class _HomeShellState extends State<HomeShell> {
   Future<void> _handleUri(Uri uri) async {
     if (!mounted) return;
 
-    // 1) HTTPS path: https://inzeli.app/join/<CODE>
     if (uri.scheme == 'https' && uri.host == 'inzeli.app') {
       if (uri.pathSegments.isNotEmpty && uri.pathSegments.first == 'join') {
         if (uri.pathSegments.length >= 2) {
@@ -140,7 +136,6 @@ class _HomeShellState extends State<HomeShell> {
       }
     }
 
-    // 2) Fallback custom scheme: inzeli://join?code=<CODE>
     if (uri.scheme == 'inzeli' && uri.host == 'join') {
       final code = uri.queryParameters['code'] ?? '';
       if (code.isNotEmpty) {
@@ -152,19 +147,13 @@ class _HomeShellState extends State<HomeShell> {
 
   Future<void> _joinRoom(String code) async {
     try {
-      // TODO: replace this with your real current user ID (or JWT in headers)
-      const guestUserId = 'GUEST_USER_ID_FROM_DB';
+      // ✅ الآن نستخدم guestUserId من config.dart
       await joinByCode(code: code, userId: guestUserId);
-      // Optional: fetch room info
-      // final room = await getRoomByCode(code);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('انضمّيت للروم $code ✅')),
       );
-
-      // (Optional) navigate to a match screen with that room data
-      // Navigator.push(context, MaterialPageRoute(builder: (_) => MatchPage(app: widget.app, supaRoom: room)));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -183,19 +172,17 @@ class _HomeShellState extends State<HomeShell> {
   Widget build(BuildContext context) {
     final app = widget.app;
 
-    // Keep pages and bottom destinations in sync (exactly 5)
     final pages = <Widget>[
-      GamesPage(app: app),       // 0
-      LeaderboardPage(app: app), // 1
-      SponsorPage(app: app),     // 2
-      TimelinePage(app: app),    // 3
-      ProfilePage(app: app),     // 4
+      GamesPage(app: app),
+      LeaderboardPage(app: app),
+      SponsorPage(app: app),
+      TimelinePage(app: app),
+      ProfilePage(app: app),
     ];
     final titles = <String>[
       'انزلي','المراتب','سبونسر','السالفة؟','حسابي'
     ];
 
-    // Guard index in case of hot-reload mismatches
     if (_tab < 0 || _tab >= pages.length) {
       _tab = 0;
     }
@@ -214,15 +201,6 @@ class _HomeShellState extends State<HomeShell> {
             },
             icon: const Icon(Icons.person_add_alt_1),
           ),
-
-          // Optional: a quick debug button to test API ping without touching main structure
-          // IconButton(
-          //   tooltip: 'Ping API',
-          //   onPressed: () async {
-          //     // Example: call http.get('$apiBase/ping') and show result
-          //   },
-          //   icon: const Icon(Icons.bug_report_outlined),
-          // ),
         ],
       ),
       body: pages[_tab],

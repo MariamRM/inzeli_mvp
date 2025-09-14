@@ -7,7 +7,6 @@ import '../config.dart';
 class MatchPage extends StatefulWidget {
   final AppState app;
   final Map<String, dynamic>? room; // {id, code, gameId, ...} from backend
-
   const MatchPage({super.key, required this.app, this.room});
 
   @override
@@ -16,17 +15,28 @@ class MatchPage extends StatefulWidget {
 
 class _MatchPageState extends State<MatchPage> {
   final _codeCtrl = TextEditingController();
-  @override void dispose() { _codeCtrl.dispose(); super.dispose(); }
+
+  @override
+  void dispose() {
+    _codeCtrl.dispose();
+    super.dispose();
+  }
+
+  // wrapper helps analyzer & allows future transforms
+  Future<List<Map<String, dynamic>>> _fetchPlayers(String roomId) {
+    return getPlayers(roomId);
+  }
 
   @override
   Widget build(BuildContext context) {
     final code   = (widget.room?['code'] ?? widget.app.roomCode ?? '').toString();
     final game   = (widget.room?['gameId'] ?? widget.app.selectedGame ?? 'لعبة').toString();
-    final roomId = (widget.room?['id'] ?? '').toString();
+    final roomId = (widget.room?['id']   ?? '').toString();
 
-    // prod-style QR (HTTP path). For local dev you can point to API directly.
+    // production QR (HTTP path on your domain)
     final httpsLink = 'https://inzeli.app/join/$code';
-    // final devLink  = 'http://10.0.2.2:3000/join/$code?userId=$guestUserId';
+    // local dev (optional, opens browser to call API):
+    // final devLink  = 'http://10.0.2.2:3000/api/rooms/join?userId=$guestUserId&code=$code';
 
     return Scaffold(
       appBar: AppBar(title: Text('مباراة $game — كود: ${code.isEmpty ? "—" : code}')),
@@ -34,18 +44,31 @@ class _MatchPageState extends State<MatchPage> {
         padding: const EdgeInsets.all(16),
         children: [
           if (code.isNotEmpty) ...[
-            Center(child: QrImageView(data: httpsLink, size: 220, backgroundColor: Colors.white)),
+            Center(
+              child: QrImageView(
+                data: httpsLink, // change to devLink during local QR tests if you prefer
+                size: 220,
+                backgroundColor: Colors.white,
+              ),
+            ),
             const SizedBox(height: 8),
             SelectableText('كود الروم: $code', textAlign: TextAlign.center),
           ] else
             const Text('لا يوجد كود — ارجع وأنشئ روم من “انزلي”.'),
 
           const SizedBox(height: 20),
+
+          // join by code (manual)
           const Text('انضم بالكود (اختبار بدون سكان)'),
           const SizedBox(height: 6),
           Row(
             children: [
-              Expanded(child: TextField(controller: _codeCtrl, decoration: const InputDecoration(labelText: 'اكتب كود الروم'))),
+              Expanded(
+                child: TextField(
+                  controller: _codeCtrl,
+                  decoration: const InputDecoration(labelText: 'اكتب كود الروم'),
+                ),
+              ),
               const SizedBox(width: 8),
               FilledButton(
                 onPressed: () async {
@@ -75,14 +98,21 @@ class _MatchPageState extends State<MatchPage> {
           ),
 
           const SizedBox(height: 16),
+
+          // players list (requires roomId from backend room)
           if (roomId.isNotEmpty) ...[
             const Text('اللاعبون:'),
             const SizedBox(height: 6),
             FutureBuilder<List<Map<String, dynamic>>>(
-              future: getPlayers(roomId),
+              future: _fetchPlayers(roomId),
               builder: (context, snap) {
-                if (!snap.hasData) return const Text('…');
-                final rows = snap.data!;
+                if (snap.connectionState == ConnectionState.waiting) {
+                  return const Text('…');
+                }
+                if (snap.hasError) {
+                  return Text('خطأ: ${snap.error}');
+                }
+                final rows = snap.data ?? const [];
                 if (rows.isEmpty) return const Text('لاعب واحد (أنت)');
                 return Wrap(
                   spacing: 6,
